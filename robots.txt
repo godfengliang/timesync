@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://timesync-tool.surge.sh/sitemap.xml
