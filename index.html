@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeSync — Find the Best Meeting Time Across Time Zones</title>
+<meta name="description" content="Free visual meeting time finder for remote teams. Add time zones, drag the slider, see everyone's local time. Generate shareable link. No signup.">
+<meta name="keywords" content="time zone converter, meeting planner, remote team, timezone finder, schedule meeting, world clock">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://timesync-tool.surge.sh/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="TimeSync — Find the Best Meeting Time Across Time Zones">
+<meta property="og:description" content="Visual meeting time finder. Add time zones, see everyone's local time instantly. Free, no signup.">
+<meta property="og:url" content="https://timesync-tool.surge.sh/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TimeSync — Best Meeting Time Across Time Zones">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"TimeSync","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Free visual meeting time finder for remote teams."}</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{padding:16px 24px;background:#1e293b;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:20px;font-weight:700;color:#38bdf8}
+header h1 span{color:#64748b;font-weight:400;font-size:13px}
+.controls{padding:12px 24px;background:#1e293b;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.controls select,.controls input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:13px}
+.controls select{min-width:200px}
+.btn{padding:6px 14px;border-radius:6px;border:none;font-size:13px;cursor:pointer;font-weight:600}
+.btn-add{background:#1e40af;color:#93c5fd;border:1px solid #3b82f6}
+.btn-add:hover{background:#1d4ed8}
+.btn-remove{background:#transparent;border:none;color:#ef4444;cursor:pointer;font-size:16px;padding:4px 8px}
+.share-link{background:#0f172a;border:1px solid #334155;color:#38bdf8;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;text-decoration:none}
+.timeline{max-width:1000px;margin:24px auto;padding:0 20px}
+.time-slider{margin-bottom:20px}
+.time-slider label{font-size:12px;color:#64748b;display:block;margin-bottom:6px}
+.time-slider input[type=range]{width:100%;accent-color:#3b82f6}
+.slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#475569;margin-top:4px}
+.zone-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #1e293b}
+.zone-row:last-child{border:none}
+.zone-name{width:180px;flex-shrink:0}
+.zone-name .city{font-size:14px;font-weight:600}
+.zone-name .tz{font-size:11px;color:#64748b}
+.zone-bar{flex:1;display:flex;height:32px;border-radius:4px;overflow:hidden;position:relative}
+.zone-bar .hour{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border-right:1px solid rgba(0,0,0,.2)}
+.zone-bar .hour.night{background:#1e293b;color:#475569}
+.zone-bar .hour.morning{background:#172554;color:#93c5fd}
+.zone-bar .hour.work{background:#1e40af;color:#93c5fd}
+.zone-bar .hour.evening{background:#172554;color:#7dd3fc}
+.zone-bar .hour.selected{outline:3px solid #f59e0b;outline-offset:-3px;z-index:1;font-weight:800;color:#fbbf24}
+.zone-time{width:80px;text-align:right;font-size:18px;font-weight:700;color:#fbbf24;flex-shrink:0}
+.zone-offset{font-size:11px;color:#64748b}
+.add-row{display:flex;gap:8px;align-items:center;margin-top:16px}
+.share-section{max-width:1000px;margin:24px auto;padding:0 20px;text-align:center}
+.share-section textarea{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:12px;font-size:13px;resize:none;height:80px;margin-top:8px}
+.help{max-width:1000px;margin:0 auto 40px;padding:0 20px;text-align:center;font-size:12px;color:#475569}
+</style>
+</head>
+<body>
+<header>
+  <h1>TimeSync <span>— Find the best meeting time</span></h1>
+</header>
+<div class="controls">
+  <select id="tzSelect"></select>
+  <button class="btn btn-add" id="btnAdd">+ Add Time Zone</button>
+  <a class="share-link" id="btnShare" href="#">Share Link</a>
+</div>
+<div class="timeline" id="timeline">
+  <div class="time-slider">
+    <label>Drag to pick a time: <strong id="selectedTime">09:00</strong></label>
+    <input type="range" id="hourSlider" min="0" max="23" value="9">
+    <div class="slider-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>
+  </div>
+  <div id="zones"></div>
+  <div class="add-row">
+    <span style="font-size:12px;color:#64748b">Quick add:</span>
+    <button class="btn btn-add" onclick="quickAdd('America/New_York')">NYC</button>
+    <button class="btn btn-add" onclick="quickAdd('Europe/London')">London</button>
+    <button class="btn btn-add" onclick="quickAdd('Asia/Shanghai')">Beijing</button>
+    <button class="btn btn-add" onclick="quickAdd('Asia/Tokyo')">Tokyo</button>
+    <button class="btn btn-add" onclick="quickAdd('Australia/Sydney')">Sydney</button>
+    <button class="btn btn-add" onclick="quickAdd('Europe/Berlin')">Berlin</button>
+    <button class="btn btn-add" onclick="quickAdd('Asia/Kolkata')">Mumbai</button>
+  </div>
+</div>
+<div class="share-section">
+  <textarea id="shareText" readonly style="display:none"></textarea>
+</div>
+<div class="help">All calculations run in your browser. No data uploaded.</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const POPULAR=[
+  'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+  'America/Sao_Paulo','Europe/London','Europe/Paris','Europe/Berlin',
+  'Europe/Moscow','Asia/Dubai','Asia/Kolkata','Asia/Bangkok',
+  'Asia/Shanghai','Asia/Tokyo','Asia/Seoul','Australia/Sydney',
+  'Pacific/Auckland','Pacific/Honolulu','Africa/Cairo','Africa/Lagos'
+];
+
+let zones = [];
+const baseTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// Populate select
+const sel = $('tzSelect');
+POPULAR.forEach(tz => {
+  const opt = document.createElement('option');
+  opt.value = tz;
+  const parts = tz.split('/');
+  opt.textContent = tz.replace(/_/g,' ');
+  sel.appendChild(opt);
+});
+
+// Parse URL params
+const params = new URLSearchParams(location.search);
+if (params.has('zones')) {
+  zones = params.get('zones').split(',').filter(Boolean);
+} else {
+  zones = [baseTz];
+}
+if (params.has('hour')) {
+  $('hourSlider').value = parseInt(params.get('hour'));
+}
+
+function getHourInTz(baseHour, baseTz, targetTz) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const base = new Date(y, m, d, baseHour, 0, 0);
+
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: targetTz, hour: 'numeric', hour12: false
+  });
+  const h = parseInt(fmt.format(base));
+  return isNaN(h) ? baseHour : h;
+}
+
+function getOffset(tz) {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, timeZoneName: 'shortOffset'
+  });
+  const parts = fmt.formatToParts(now);
+  const offset = parts.find(p => p.type === 'timeZoneName');
+  return offset ? offset.value : tz;
+}
+
+function classifyHour(h) {
+  if (h >= 0 && h < 7) return 'night';
+  if (h >= 7 && h < 9) return 'morning';
+  if (h >= 9 && h < 18) return 'work';
+  if (h >= 18 && h < 21) return 'evening';
+  return 'night';
+}
+
+function render() {
+  const baseHour = parseInt($('hourSlider').value);
+  const baseTzLocal = zones[0] || baseTz;
+  $('selectedTime').textContent = String(baseHour).padStart(2,'0') + ':00';
+
+  const container = $('zones');
+  container.innerHTML = '';
+
+  zones.forEach((tz, idx) => {
+    const localHour = getHourInTz(baseHour, baseTzLocal, tz);
+    const offset = getOffset(tz);
+    const city = tz.split('/').pop().replace(/_/g, ' ');
+
+    const row = document.createElement('div');
+    row.className = 'zone-row';
+
+    // Name
+    const name = document.createElement('div');
+    name.className = 'zone-name';
+    name.innerHTML = `<div class="city">${city}</div><div class="tz">${offset}</div>`;
+
+    // Bar (24 hours)
+    const bar = document.createElement('div');
+    bar.className = 'zone-bar';
+    for (let h = 0; h < 24; h++) {
+      const cell = document.createElement('div');
+      cell.className = `hour ${classifyHour(h)}`;
+      if (h === localHour) cell.classList.add('selected');
+      cell.textContent = String(h).padStart(2,'0');
+      bar.appendChild(cell);
+    }
+
+    // Time
+    const time = document.createElement('div');
+    time.className = 'zone-time';
+    time.textContent = String(localHour).padStart(2,'0') + ':00';
+
+    // Remove btn
+    const rm = document.createElement('button');
+    rm.className = 'btn-remove';
+    rm.textContent = '×';
+    rm.onclick = () => { zones.splice(idx, 1); render(); };
+
+    row.appendChild(name);
+    row.appendChild(bar);
+    row.appendChild(time);
+    row.appendChild(rm);
+    container.appendChild(row);
+  });
+}
+
+$('btnAdd').addEventListener('click', () => {
+  const tz = $('tzSelect').value;
+  if (!zones.includes(tz)) { zones.push(tz); render(); }
+});
+
+window.quickAdd = function(tz) {
+  if (!zones.includes(tz)) { zones.push(tz); render(); }
+};
+
+$('hourSlider').addEventListener('input', render);
+
+$('btnShare').addEventListener('click', e => {
+  e.preventDefault();
+  const hour = $('hourSlider').value;
+  const zonesStr = zones.join(',');
+  const url = `${location.origin}${location.pathname}?zones=${encodeURIComponent(zonesStr)}&hour=${hour}`;
+  const text = `Meeting at ${String(hour).padStart(2,'0')}:00\n${zones.map(tz => {
+    const city = tz.split('/').pop().replace(/_/g,' ');
+    const localHour = getHourInTz(parseInt(hour), zones[0], tz);
+    return `${city}: ${String(localHour).padStart(2,'0')}:00`;
+  }).join('\n')}\n\n${url}`;
+
+  const ta = $('shareText');
+  ta.style.display = '';
+  ta.value = text;
+  ta.select();
+  navigator.clipboard.writeText(text).catch(() => {});
+  alert('Meeting time copied to clipboard!');
+});
+
+render();
+})();
+</script>
+</body>
+</html>
